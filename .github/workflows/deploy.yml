@@ -4,6 +4,17 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy (branch, tag, or SHA)"
+        required: false
+        default: "master"
+        type: string
+      vite_api_base:
+        description: "Optional backend URL override for this run"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -24,6 +35,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -35,20 +48,26 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Validate required deployment variable
+      - name: Resolve deployment backend URL
+        id: resolve_api
         run: |
-          if [ -z "${{ vars.VITE_API_BASE }}" ]; then
+          API_BASE="${{ github.event_name == 'workflow_dispatch' && inputs.vite_api_base || '' }}"
+          if [ -z "$API_BASE" ]; then
+            API_BASE="${{ vars.VITE_API_BASE }}"
+          fi
+          if [ -z "$API_BASE" ]; then
             echo "Repository variable VITE_API_BASE is required for deployment."
             echo "Set it to your backend URL, e.g. https://your-backend-host.example.com"
             exit 1
           fi
+          echo "api_base=$API_BASE" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build frontend
         env:
-          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          VITE_API_BASE: ${{ steps.resolve_api.outputs.api_base }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build
 

@@ -92,7 +92,17 @@ Jobs:
 Deployment workflow is in `.github/workflows/deploy.yml` and triggers on:
 
 - `push` to `master`
-- manual `workflow_dispatch`
+- manual `workflow_dispatch` (supports custom `ref` and optional `vite_api_base` override)
+
+### Do you need `VITE_API_BASE`?
+
+Yes, for public GitHub Pages deployment you need a reachable backend URL.  
+Without it, the frontend falls back to `http://localhost:8000`, which only works on your own machine.
+
+Set `VITE_API_BASE` to your deployed backend URL, for example:
+
+- `https://polymarket-analytics-backend.onrender.com`
+- `https://polymarket-analytics-backend.up.railway.app`
 
 ### Required GitHub repository settings
 
@@ -121,4 +131,17 @@ Push to `master`:
 git push origin master
 ```
 
-Or run it manually from the Actions tab (`Deploy Frontend to GitHub Pages` workflow).
+Or run it manually from the Actions tab (`Deploy Frontend to GitHub Pages` workflow):
+
+1. Open `Actions -> Deploy Frontend to GitHub Pages`.
+2. Click `Run workflow`.
+3. Choose branch/ref:
+   - `ref=master` for normal production deploy
+   - `ref=<feature-branch>` to deploy that branch commit
+4. Optional: set `vite_api_base` to override backend URL just for this run.
+
+### Deploying from a branch
+
+- It is supported through manual workflow dispatch (`ref` input).
+- GitHub Pages hosts a single site per repo, so a branch deploy replaces the current live site for this repo.
+- If you want previews without replacing production, use a separate preview environment/repo.
