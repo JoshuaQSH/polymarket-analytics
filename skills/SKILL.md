@@ -70,8 +70,11 @@ Key Gamma endpoints:
 7. **Docker.** A working `Dockerfile` and `docker-compose.yml` are required.
    Run and pass tests inside the container before declaring done.
 8. **GitHub Actions CI.** `.github/workflows/ci.yml` must run all tests on
-   every PR and push to `main`.
+   every PR and push to `master`.
 9. **`REPO_STRUCTURE.md`** kept up-to-date with every module addition.
+10. **`STRATEGY.md`** must be updated whenever a non-LLM strategy is added or
+    changed. Include algorithm details, math notation, parameter defaults, and
+    a pros/cons table.
 
 ## 4. Module Build Order
 
@@ -90,6 +93,9 @@ Module 9  → LLM fine-tuning data exporter (JSONL)
 Module 10 → GitHub Actions CI + Dockerfile verification
 Module 11 → GitHub Pages deployment workflow
 ```
+
+After Module 7 and for every later strategy addition, update `STRATEGY.md` in
+the same PR as code + tests.
 
 ## 5. Backend — Key Patterns
 
@@ -205,7 +211,7 @@ volume, tags, and the strategy signal with rationale.
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [master]
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
@@ -281,7 +287,7 @@ When writing `REPO_STRUCTURE.md`, include:
 ## 12. Git Workflow (Mandatory for Every Module)
 
 All code changes must follow this branch-and-PR workflow. **Never commit
-directly to `main`.**
+directly to `master`.**
 
 ### 12.1 Branch Naming Convention
 
@@ -302,8 +308,8 @@ chore/update-repo-structure
 After completing and locally testing each module, Claude Code must:
 
 ```bash
-# 1. Create a feature branch from main
-git checkout main && git pull origin main
+# 1. Create a feature branch from master
+git checkout master && git pull origin master
 git checkout -b feature/<N>-<description>
 
 # 2. Stage only relevant files (never use `git add .` blindly)
@@ -321,7 +327,7 @@ git push -u origin feature/<N>-<description>
 gh pr create \
   --title "feat(module-01): Gamma + CLOB API clients" \
   --body "$(cat .github/pr_template.md)" \
-  --base main \
+  --base master \
   --head feature/<N>-<description>
 ```
 
@@ -331,7 +337,7 @@ Claude Code must not merge the PR — the user confirms and merges.
 ### 12.3 Automatic PR Workflow (`.github/workflows/ci.yml`)
 
 This workflow runs on every `push` to any branch and every `pull_request`
-targeting `main`. A PR cannot be merged until all jobs are green.
+targeting `master`. A PR cannot be merged until all jobs are green.
 
 ```yaml
 # .github/workflows/ci.yml
@@ -341,7 +347,7 @@ on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   backend-test:
@@ -409,7 +415,7 @@ jobs:
 ### 12.4 Branch Protection Rules (set once in GitHub repo settings)
 
 Instruct the user to configure these settings at
-`Settings → Branches → Add rule` for the `main` branch:
+`Settings → Branches → Add rule` for the `master` branch:
 
 | Setting | Value |
 |---|---|
@@ -505,7 +511,7 @@ Thumbs.db
 ```bash
 # Inside the repo root
 git init
-git checkout -b main
+git checkout -b master
 
 # Create .gitignore first — before any other files
 cat > .gitignore << 'EOF'
@@ -518,7 +524,7 @@ git commit -m "chore: initial project scaffold"
 
 # Push
 git remote add origin git@github.com:<you>/polymarket-analytics.git
-git push -u origin main
+git push -u origin master
 
 # Install GitHub CLI if not present, then authenticate
 gh auth login
@@ -536,4 +542,4 @@ git push
 
 ---
 
-*Read `CLAUDE.md` for general behaviour rules that complement this skill.*
+*Read `AGENT.md` for general behaviour rules that complement this skill.*
