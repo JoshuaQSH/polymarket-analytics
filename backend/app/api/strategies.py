@@ -20,6 +20,7 @@ from app.strategies.llm_strategy import (
     generate_llm_strategy_results,
 )
 from app.strategies.mean_reversion import generate_strategy_results
+from app.strategies.regression import generate_regression_strategy_results
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -27,21 +28,24 @@ router = APIRouter(prefix="/strategies", tags=["strategies"])
 @router.get("")
 async def list_strategies(
     limit: int = Query(default=100, ge=1, le=1000),
+    strategy_type: Literal["mean_reversion", "regression"] = Query(default="mean_reversion"),
 ) -> list[dict[str, str | float]]:
-    """Generate mean-reversion strategy outputs for candidate events."""
+    """Generate strategy outputs for candidate events."""
     try:
         events: list[dict[str, Any]] = await fetch_events(limit=limit)
     except GammaClientError as exc:
         raise HTTPException(status_code=502, detail="Failed to fetch events from Gamma") from exc
 
     try:
+        if strategy_type == "regression":
+            return await generate_regression_strategy_results(events)
         return await generate_strategy_results(events)
     except ClobClientError as exc:
         raise HTTPException(status_code=502, detail="Failed to fetch price history from CLOB") from exc
 
 
 class StrategySimulationRequest(BaseModel):
-    strategy_type: Literal["mean_reversion", "llm"] = "mean_reversion"
+    strategy_type: Literal["mean_reversion", "regression", "llm"] = "mean_reversion"
     limit: int = Field(default=100, ge=1, le=500)
     interval_seconds: int = Field(default=60, ge=5, le=3600)
     provider: Literal["local", "remote", "claude"] = "local"
@@ -52,7 +56,7 @@ class StrategySimulationRequest(BaseModel):
 
 
 class StrategySimulationResponse(BaseModel):
-    strategy_type: Literal["mean_reversion", "llm"]
+    strategy_type: Literal["mean_reversion", "regression", "llm"]
     provider: Literal["local", "remote", "claude"] | None = None
     model: str | None = None
     interval_seconds: int
@@ -121,6 +125,8 @@ async def simulate_strategies(payload: StrategySimulationRequest) -> StrategySim
                 max_events=payload.llm_max_events,
                 use_cache=payload.use_cache,
             )
+        elif payload.strategy_type == "regression":
+            results = await generate_regression_strategy_results(events)
         else:
             results = await generate_strategy_results(events)
     except ClobClientError as exc:

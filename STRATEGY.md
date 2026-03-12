@@ -4,7 +4,9 @@ This file documents the non-LLM quantitative strategy logic implemented in this 
 
 ## Scope
 
-- Included: statistical strategy engine in `backend/app/strategies/mean_reversion.py`
+- Included:
+  - statistical strategy engine in `backend/app/strategies/mean_reversion.py`
+  - regression trend strategy in `backend/app/strategies/regression.py`
 - Excluded: LLM-guided strategy (`backend/app/strategies/llm_strategy.py`)
 
 ## Strategy 1: Mean-Reversion Baseline
@@ -130,6 +132,132 @@ The simulation endpoint also computes:
 | Risk behavior | Minor-incident filter reduces crowding risk. | Filter may miss large opportunities in high-volume events. |
 | Implementation complexity | Simple to maintain and debug. | Simplicity may underfit complex market dynamics. |
 
+## Strategy 2: Regression Trend Baseline
+
+### Objective
+
+Fit a short rolling linear trend on Yes probability and trade with the predicted
+one-step direction:
+
+- `buy_yes` if predicted price is meaningfully above current price
+- `buy_no` if predicted price is meaningfully below current price
+- `hold` otherwise
+
+### Universe Filter ("Minor Incidents")
+
+Uses the same universe filter as mean reversion:
+
+- participant count \(N < 500\)
+- near-even market:
+  \[
+  |p - 0.5| < 0.15
+  \]
+
+### Data Pipeline
+
+1. Fetch candidate events from Gamma.
+2. Resolve CLOB market identifier per event.
+3. Pull daily price history, fallback to hourly when sparse.
+4. Keep only valid probabilities:
+   \[
+   p_t \in [0, 1]
+   \]
+
+### Signal Logic
+
+Default parameters:
+
+- Lookback window: \(W = 12\)
+- Forecast horizon: \(H = 1\)
+- Edge threshold: \(\theta = 0.02\)
+- Confidence scale: \(s = 4.0\)
+
+For each event, fit OLS on recent window:
+
+\[
+\hat{p}_t = \beta_1 t + \beta_0
+\]
+
+Forecast:
+
+\[
+\tilde{p}_{t+H} = \beta_1 (t+H) + \beta_0
+\]
+
+Directional edge:
+
+\[
+e_t = \tilde{p}_{t+H} - p_t
+\]
+
+Decision rule:
+
+- If \(e_t \ge \theta\): `buy_yes`
+- If \(e_t \le -\theta\): `buy_no`
+- Else: `hold`
+
+### Confidence Function
+
+For directional signals:
+
+\[
+c_t = \min(0.95,\ 0.55 + s \cdot |e_t|)
+\]
+
+For `hold`:
+
+\[
+c_t = \max(0.35,\ 0.55 - s \cdot |e_t|)
+\]
+
+### Expected Return Estimator
+
+Backtest window default: \(B = 60\).
+
+For each index \(i\), use the preceding \(W\) points to fit trend and predict
+\(\tilde{p}_{i+1}\), then evaluate realized one-step return:
+
+- If \(e_i \ge \theta\) (Yes long):
+  \[
+  r_i^{yes} = \frac{p_{i+1} - p_i}{p_i}
+  \]
+- If \(e_i \le -\theta\) (No long with \(q_i = 1 - p_i\)):
+  \[
+  r_i^{no} = \frac{q_{i+1} - q_i}{q_i}
+  \]
+
+Aggregate:
+
+\[
+\hat{R} = 100 \cdot \frac{1}{K}\sum_{j=1}^{K} r_j
+\]
+
+where \(K\) is valid simulated trades; if \(K=0\), return \(0\).
+
+### Output Schema
+
+Same output schema as Strategy 1:
+
+```json
+{
+  "event_id": "string",
+  "signal": "buy_yes | buy_no | hold",
+  "confidence": 0.0,
+  "expected_return_pct": 0.0,
+  "rationale": "string"
+}
+```
+
+### Pros and Cons
+
+| Aspect | Pros | Cons |
+|---|---|---|
+| Trend sensitivity | Captures directional drift that mean reversion can miss. | Can chase noise in highly mean-reverting markets. |
+| Adaptivity | Regression slope updates continuously from latest window. | Linear assumption may underfit nonlinear order-flow dynamics. |
+| Interpretability | Coefficients and forecast edge are easy to inspect. | Requires careful threshold tuning across regimes. |
+| Runtime | Still lightweight and deterministic. | More floating-point sensitivity than simple threshold rules. |
+| Robustness | Hourly fallback improves sparse-history coverage. | Thin markets can still produce unstable slopes. |
+
 ## Failure Modes and Practical Notes
 
 - If price history length \(< W+1\): strategy returns `hold` with zero expected return.
@@ -150,4 +278,3 @@ When adding any new non-LLM strategy:
    - pros/cons table row(s)
 2. Keep legacy strategy sections intact for comparability/history.
 3. Update this file in the same PR as the strategy code and tests.
-

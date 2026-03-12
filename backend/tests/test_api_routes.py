@@ -111,6 +111,43 @@ def test_strategies_route_returns_results(monkeypatch) -> None:
     assert response.json()[0]["event_id"] == "evt-1"
 
 
+def test_strategies_route_supports_regression_strategy(monkeypatch) -> None:
+    async def fake_fetch_events(*, limit: int = 100, gamma_client=None):
+        assert limit == 30
+        return [{"id": "evt-reg"}]
+
+    async def fake_generate_regression_strategy_results(events, *, strategy=None, price_history_fetcher=None):
+        assert events == [{"id": "evt-reg"}]
+        return [
+            {
+                "event_id": "evt-reg",
+                "signal": "buy_yes",
+                "confidence": 0.67,
+                "expected_return_pct": 2.4,
+                "rationale": "regression test rationale",
+            }
+        ]
+
+    monkeypatch.setattr("app.api.strategies.fetch_events", fake_fetch_events)
+    monkeypatch.setattr(
+        "app.api.strategies.generate_regression_strategy_results",
+        fake_generate_regression_strategy_results,
+    )
+
+    response = client.get("/strategies", params={"limit": 30, "strategy_type": "regression"})
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "event_id": "evt-reg",
+            "signal": "buy_yes",
+            "confidence": 0.67,
+            "expected_return_pct": 2.4,
+            "rationale": "regression test rationale",
+        }
+    ]
+
+
 def test_strategies_route_maps_gamma_errors_to_502(monkeypatch) -> None:
     async def fake_fetch_events(*, limit: int = 100, gamma_client=None):
         raise GammaClientError("boom")
@@ -178,6 +215,44 @@ def test_simulate_strategies_route_returns_mean_reversion_payload(monkeypatch) -
     assert payload["earnings_rate_pct"] == 1.2
     assert payload["provider"] is None
     assert payload["results"][0]["event_id"] == "evt-1"
+
+
+def test_simulate_strategies_route_returns_regression_payload(monkeypatch) -> None:
+    async def fake_fetch_events(*, limit: int = 100, gamma_client=None):
+        assert limit == 15
+        return [{"id": "evt-reg"}]
+
+    async def fake_generate_regression_strategy_results(events, *, strategy=None, price_history_fetcher=None):
+        assert events == [{"id": "evt-reg"}]
+        return [
+            {
+                "event_id": "evt-reg",
+                "signal": "buy_no",
+                "confidence": 0.7,
+                "expected_return_pct": 2.5,
+                "earnings_rate_pct": 1.75,
+                "rationale": "regression",
+            }
+        ]
+
+    monkeypatch.setattr("app.api.strategies.fetch_events", fake_fetch_events)
+    monkeypatch.setattr(
+        "app.api.strategies.generate_regression_strategy_results",
+        fake_generate_regression_strategy_results,
+    )
+
+    response = client.post(
+        "/strategies/simulate",
+        json={"strategy_type": "regression", "limit": 15, "interval_seconds": 75},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["strategy_type"] == "regression"
+    assert payload["provider"] is None
+    assert payload["interval_seconds"] == 75
+    assert payload["earnings_rate_pct"] == 1.75
+    assert payload["results"][0]["event_id"] == "evt-reg"
 
 
 def test_simulate_strategies_route_runs_llm_strategy(monkeypatch) -> None:

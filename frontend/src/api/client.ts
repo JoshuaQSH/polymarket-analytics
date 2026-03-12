@@ -30,7 +30,7 @@ export type PriceHistoryResponse = {
 };
 
 export type StrategySignal = "buy_yes" | "buy_no" | "hold";
-export type StrategyType = "mean_reversion" | "llm";
+export type StrategyType = "mean_reversion" | "regression" | "llm";
 export type LlmProvider = "local" | "remote" | "claude";
 
 export type StrategyResult = {
@@ -108,6 +108,13 @@ export async function fetchPriceHistory(
 
 export async function fetchStrategies(limit = 100): Promise<StrategyResult[]> {
   return request<StrategyResult[]>(`/strategies?limit=${limit}`);
+}
+
+export async function fetchStrategiesByType(
+  strategyType: Exclude<StrategyType, "llm">,
+  limit = 100
+): Promise<StrategyResult[]> {
+  return request<StrategyResult[]>(`/strategies?limit=${limit}&strategy_type=${strategyType}`);
 }
 
 export async function simulateStrategies(

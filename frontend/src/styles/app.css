@@ -377,6 +377,18 @@ a {
   font-size: 1.2rem;
 }
 
+.page--strategy-benefits .simulation-controls {
+  margin-bottom: 1rem;
+}
+
+.benefits-panel {
+  margin-top: 1rem;
+}
+
+.benefits-table-wrap {
+  margin-top: 1rem;
+}
+
 .strategy-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
