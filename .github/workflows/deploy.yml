@@ -38,9 +38,6 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
