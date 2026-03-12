@@ -59,7 +59,11 @@ export function StrategyPage() {
   }, [runOnce]);
 
   const strategyTitle =
-    config.strategyType === "llm" ? "LLM Strategy Simulation" : "Mean-Reversion Signals";
+    config.strategyType === "llm"
+      ? "LLM Strategy Simulation"
+      : config.strategyType === "regression"
+        ? "Regression Trend Signals"
+        : "Mean-Reversion Signals";
   const modelOptions =
     config.provider === "remote"
       ? REMOTE_MODEL_OPTIONS
@@ -89,7 +93,7 @@ export function StrategyPage() {
                 onChange={(event) =>
                   setConfig((prev) => ({
                     ...prev,
-                    strategyType: event.target.value as "mean_reversion" | "llm",
+                    strategyType: event.target.value as "mean_reversion" | "regression" | "llm",
                     model:
                       event.target.value === "llm"
                         ? prev.provider === "remote"
@@ -102,6 +106,7 @@ export function StrategyPage() {
                 }
               >
                 <option value="mean_reversion">Mean Reversion</option>
+                <option value="regression">Regression Trend</option>
                 <option value="llm">LLM Strategy</option>
               </select>
             </label>
@@ -251,6 +256,9 @@ export function StrategyPage() {
                 Use backend LLM cache
               </label>
             )}
+            <Link className="hero__cta" to="/strategy-benefits">
+              Open Benefit Comparison
+            </Link>
           </div>
         </section>
 

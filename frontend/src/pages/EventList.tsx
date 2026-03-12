@@ -19,6 +19,9 @@ export function EventListPage() {
           <Link className="hero__cta" to="/strategies">
             Open Strategy Engine
           </Link>
+          <Link className="hero__cta" to="/strategy-benefits">
+            View Benefit Plot
+          </Link>
         </div>
 
         <div className="stats-grid">

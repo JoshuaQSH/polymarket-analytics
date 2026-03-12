@@ -7,6 +7,10 @@ from app.strategies.mean_reversion import (
     generate_strategy_results,
     is_minor_incident_event,
 )
+from app.strategies.regression import (
+    RegressionTrendStrategy,
+    generate_regression_strategy_results,
+)
 from app.strategies.llm_strategy import (
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_LOCAL_MODEL,
@@ -25,8 +29,10 @@ __all__ = [
     "BaseStrategy",
     "StrategyResult",
     "MeanReversionStrategy",
+    "RegressionTrendStrategy",
     "extract_condition_id",
     "generate_strategy_results",
+    "generate_regression_strategy_results",
     "is_minor_incident_event",
     "DEFAULT_CLAUDE_MODEL",
     "DEFAULT_LOCAL_MODEL",
